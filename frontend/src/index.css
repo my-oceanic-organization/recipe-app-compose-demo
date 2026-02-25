@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom font stack */
+@layer base {
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir,
+      segoe ui, helvetica neue, Adwaita Sans, Cantarell, Ubuntu, roboto, noto,
+      helvetica, arial, sans-serif;
+  }
+}
+
+/* Stripe-inspired subtle design */
+@layer components {
+  .glass {
+    @apply bg-white/8 backdrop-blur-sm border border-white/15 shadow-sm;
+  }
+
+  .glass-card {
+    @apply bg-white/12 backdrop-blur-md border border-white/20 shadow-md;
+  }
+
+  .glass-header {
+    @apply bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm;
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+
+  .gradient-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  }
+
+  .gradient-secondary {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  }
+}
