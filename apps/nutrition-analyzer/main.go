@@ -19,7 +19,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	redisURL := getEnv("REDIS_URL", "redis://redis:6379")
+	redisURL := getEnv("QUEUE_REDIS_URL", "redis://br-queue:6379")
 	dbURL := os.Getenv("DATABASE_URL")
 	port := getEnv("PORT", "8080")
 
@@ -33,6 +33,11 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Connected to database")
+
+	if err := waitForRecipesTable(ctx, dbPool); err != nil {
+		log.Fatalf("Failed waiting for recipes table: %v", err)
+	}
+	log.Println("recipes table found")
 
 	if err := ensureSchema(ctx, dbPool); err != nil {
 		log.Fatalf("Failed to create schema: %v", err)

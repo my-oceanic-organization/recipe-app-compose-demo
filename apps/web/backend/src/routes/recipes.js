@@ -2,7 +2,7 @@ const { Router } = require("express");
 
 const CACHE_TTL = 60;
 
-const recipeRoutes = (pool, redis) => {
+const recipeRoutes = (pool, cache, queue) => {
   const router = Router();
 
   router.get("/", async (req, res) => {
@@ -10,14 +10,14 @@ const recipeRoutes = (pool, redis) => {
       const { search, limit = 20, offset = 0 } = req.query;
 
       const cacheKey = `recipes:search:${search || ""}:${limit}:${offset}`;
-      if (redis) {
+      if (cache) {
         try {
-          const cached = await redis.get(cacheKey);
+          const cached = await cache.get(cacheKey);
           if (cached) {
             return res.json(JSON.parse(cached));
           }
         } catch (err) {
-          console.warn("Redis cache read failed:", err.message);
+          console.warn("Cache read failed:", err.message);
         }
       }
 
@@ -39,11 +39,11 @@ const recipeRoutes = (pool, redis) => {
 
       const result = await pool.query(query, params);
 
-      if (redis) {
+      if (cache) {
         try {
-          await redis.set(cacheKey, JSON.stringify(result.rows), "EX", CACHE_TTL);
+          await cache.set(cacheKey, JSON.stringify(result.rows), "EX", CACHE_TTL);
         } catch (err) {
-          console.warn("Redis cache write failed:", err.message);
+          console.warn("Cache write failed:", err.message);
         }
       }
 
@@ -150,12 +150,12 @@ const recipeRoutes = (pool, redis) => {
         return res.status(404).json({ error: "Recipe not found" });
       }
 
-      if (!redis) {
+      if (!queue) {
         return res.status(503).json({ error: "Job queue unavailable" });
       }
 
       const job = JSON.stringify({ recipe_id: parseInt(id), attempt: 1 });
-      await redis.lpush("jobs:nutrition", job);
+      await queue.lpush("jobs:nutrition", job);
 
       res.json({ status: "queued", recipe_id: parseInt(id) });
     } catch (error) {

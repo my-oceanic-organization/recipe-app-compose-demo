@@ -170,6 +170,36 @@ func analyzeIngredients(recipeID int, ingredients []string, servings int) Nutrit
 	}
 }
 
+func waitForRecipesTable(ctx context.Context, db *pgxpool.Pool) error {
+	backoff := 10 * time.Second
+	const maxBackoff = 5 * time.Minute
+
+	for {
+		var exists bool
+		err := db.QueryRow(ctx,
+			"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'recipes')",
+		).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to check for recipes table: %w", err)
+		}
+		if exists {
+			return nil
+		}
+
+		log.Printf("recipes table not found, retrying in %s...", backoff)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+
+		backoff *= 2
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+}
+
 func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS recipe_nutrition (

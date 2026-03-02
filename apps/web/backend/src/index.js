@@ -15,15 +15,27 @@ const pool = new Pool({
     : undefined,
 });
 
-const redis = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 3 })
+const cacheRedis = process.env.CACHE_REDIS_URL
+  ? new Redis(process.env.CACHE_REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 3 })
   : null;
 
-if (redis) {
-  redis.connect().then(() => {
-    console.log("Connected to Redis");
+const queueRedis = process.env.QUEUE_REDIS_URL
+  ? new Redis(process.env.QUEUE_REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 3 })
+  : null;
+
+if (cacheRedis) {
+  cacheRedis.connect().then(() => {
+    console.log("Connected to cache Redis");
   }).catch((err) => {
-    console.warn("Redis connection failed, caching disabled:", err.message);
+    console.warn("Cache Redis connection failed, caching disabled:", err.message);
+  });
+}
+
+if (queueRedis) {
+  queueRedis.connect().then(() => {
+    console.log("Connected to queue Redis");
+  }).catch((err) => {
+    console.warn("Queue Redis connection failed, job queue disabled:", err.message);
   });
 }
 
@@ -34,7 +46,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.use("/api/recipes", recipeRoutes(pool, redis));
+app.use("/api/recipes", recipeRoutes(pool, cacheRedis, queueRedis));
 
 app.use(express.static(path.join(__dirname, "../../frontend/dist")));
 
@@ -53,7 +65,8 @@ app.listen(port, () => {
 
 process.on('SIGINT', function() {
   console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)" );
-  if (redis) redis.disconnect();
+  if (cacheRedis) cacheRedis.disconnect();
+  if (queueRedis) queueRedis.disconnect();
   process.exit(0);
 });
 

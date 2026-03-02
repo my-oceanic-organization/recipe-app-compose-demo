@@ -8,9 +8,9 @@ A recipe application with a Node.js web backend, React frontend, PostgreSQL data
 flowchart LR
     User --> Web["Web (Node.js/React)"]
     Web -- CRUD --> PostgreSQL
-    Web -- cache search results --> Redis
-    Web -- LPUSH job --> Redis
-    Redis --> Analyzer["nutrition-analyzer (Go)"]
+    Web -- cache search results --> Cache["Cache (Redis)"]
+    Web -- LPUSH job --> Queue["Queue (Redis)"]
+    Queue --> Analyzer["nutrition-analyzer (Go)"]
     Analyzer --> PostgreSQL
 ```
 
@@ -123,7 +123,7 @@ All application code lives under `apps/web/` (npm workspace with `backend` and `
 3. **Start the development servers**
 
    ```bash
-   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db REDIS_URL=redis://localhost:6379 npm run dev
+   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db CACHE_REDIS_URL=redis://localhost:6379 QUEUE_REDIS_URL=redis://localhost:6380 npm run dev
    ```
 
    This starts:
@@ -137,7 +137,7 @@ All application code lives under `apps/web/` (npm workspace with `backend` and `
 
    ```bash
    cd apps/nutrition-analyzer
-   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db REDIS_URL=redis://localhost:6379 go run .
+   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db QUEUE_REDIS_URL=redis://localhost:6380 go run .
    ```
 
 ### Database seeding
@@ -156,7 +156,7 @@ npm run db:seed
 - `GET /api/recipes/:id` - Get recipe by ID
 - `POST /api/recipes/:id/like` - Like a recipe
 - `POST /api/recipes/:id/unlike` - Unlike a recipe
-- `POST /api/recipes/:id/analyze` - Enqueue nutrition analysis (via Redis -> Go worker)
+- `POST /api/recipes/:id/analyze` - Enqueue nutrition analysis (via queue -> Go worker)
 - `GET /api/recipes/:id/nutrition` - Get nutrition data for a recipe
 
 ## Environment variables
@@ -166,7 +166,8 @@ These are configured automatically when using Docker/Podman Compose. Only set th
 | Variable | Description | Default (Compose) |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string (required) | `postgresql://recipe_user:recipe_pass@db:5432/recipe_db` |
-| `REDIS_URL` | Redis connection URL | `redis://redis:6379` |
+| `CACHE_REDIS_URL` | Redis URL for caching (web only) | `redis://br-web-cache:6379` |
+| `QUEUE_REDIS_URL` | Redis URL for job queue | `redis://br-queue:6379` |
 | `SERVER_PORT` | Backend server port | `3000` |
 | `FRONTEND_DEV_PORT` | Frontend dev server port | `5000` |
 | `NODE_ENV` | Environment mode | `production` |
