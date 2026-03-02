@@ -5,6 +5,16 @@ const CACHE_TTL = 60;
 const recipeRoutes = (pool, cache, queue) => {
   const router = Router();
 
+  async function invalidateRecipeListCache() {
+    if (!cache) return;
+    try {
+      const keys = await cache.keys("recipes:search:*");
+      if (keys.length > 0) await cache.del(...keys);
+    } catch (err) {
+      console.warn("Cache invalidation failed:", err.message);
+    }
+  }
+
   router.get("/", async (req, res) => {
     try {
       const { search, limit = 20, offset = 0 } = req.query;
@@ -91,6 +101,8 @@ const recipeRoutes = (pool, cache, queue) => {
         "UPDATE recipes SET liked_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *";
       const result = await pool.query(query, [id]);
 
+      await invalidateRecipeListCache();
+
       res.json(result.rows[0]);
     } catch (error) {
       console.error("Error liking recipe:", error);
@@ -114,6 +126,8 @@ const recipeRoutes = (pool, cache, queue) => {
       const query =
         "UPDATE recipes SET liked_at = NULL WHERE id = $1 RETURNING *";
       const result = await pool.query(query, [id]);
+
+      await invalidateRecipeListCache();
 
       res.json(result.rows[0]);
     } catch (error) {
