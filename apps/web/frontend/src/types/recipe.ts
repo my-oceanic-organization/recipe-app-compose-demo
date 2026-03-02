@@ -22,3 +22,13 @@ export interface RecipeSummary {
   created_at: string;
   liked_at: string | null;
 }
+
+export interface NutritionInfo {
+  recipe_id: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
+  analyzed_at: string;
+}

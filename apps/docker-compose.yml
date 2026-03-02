@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   web:
     build:
       context: ./web
@@ -25,11 +38,30 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://recipe_user:recipe_pass@db:5432/recipe_db
+      REDIS_URL: redis://redis:6379
       SERVER_PORT: "3000"
       NODE_ENV: production
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nutrition-analyzer:
+    build:
+      context: ./nutrition-analyzer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://recipe_user:recipe_pass@db:5432/recipe_db
+      REDIS_URL: redis://redis:6379
+      PORT: "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:

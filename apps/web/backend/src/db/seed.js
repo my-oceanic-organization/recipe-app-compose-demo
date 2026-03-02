@@ -11,7 +11,7 @@ const createTables = async () => {
   const client = await pool.connect();
   try {
     // Drop table if it exists to ensure clean structure
-    await client.query(`DROP TABLE IF EXISTS recipes`);
+    await client.query(`DROP TABLE IF EXISTS recipes CASCADE`);
 
     await client.query(`
       CREATE TABLE recipes (

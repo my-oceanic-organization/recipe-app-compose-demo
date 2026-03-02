@@ -1,13 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const Redis = require("ioredis");
 const { recipeRoutes } = require("./routes/recipes");
 const path = require("path");
 
 const app = express();
 const port = process.env.SERVER_PORT || 3000;
 
-// Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes("sslmode=require")
@@ -15,27 +15,33 @@ const pool = new Pool({
     : undefined,
 });
 
-// Middleware
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 3 })
+  : null;
+
+if (redis) {
+  redis.connect().then(() => {
+    console.log("Connected to Redis");
+  }).catch((err) => {
+    console.warn("Redis connection failed, caching disabled:", err.message);
+  });
+}
+
 app.use(cors());
 app.use(express.json());
 
-// Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// API routes
-app.use("/api/recipes", recipeRoutes(pool));
+app.use("/api/recipes", recipeRoutes(pool, redis));
 
-// Serve static files from the frontend build
 app.use(express.static(path.join(__dirname, "../../frontend/dist")));
 
-// Serve the React app for any non-API routes
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../../frontend/dist/index.html"));
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: "Something went wrong!" });
@@ -47,7 +53,7 @@ app.listen(port, () => {
 
 process.on('SIGINT', function() {
   console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)" );
-  // some other closing procedures go here
+  if (redis) redis.disconnect();
   process.exit(0);
 });
 

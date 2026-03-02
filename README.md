@@ -1,26 +1,48 @@
 # Recipe App Compose Demo
 
-A simple recipe application with a Node.js backend, React frontend, and PostgreSQL database.
+A recipe application with a Node.js web backend, React frontend, PostgreSQL database, Redis cache/queue, and a Go-based nutrition analyzer service.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User --> Web["Web (Node.js/React)"]
+    Web -- CRUD --> PostgreSQL
+    Web -- cache search results --> Redis
+    Web -- LPUSH job --> Redis
+    Redis --> Analyzer["nutrition-analyzer (Go)"]
+    Analyzer --> PostgreSQL
+    Web -- read nutrition --> PostgreSQL
+```
+
+- **Web**: Node.js + Express backend serving a React frontend. Handles recipe CRUD, caches search results in Redis, and enqueues nutrition analysis jobs to Redis.
+- **nutrition-analyzer**: Go worker that polls a Redis list for jobs, analyzes recipe ingredients to estimate nutritional info (calories, protein, carbs, fat, fiber), and writes results to PostgreSQL.
+- **Redis**: Used as a job queue (between web and analyzer) and a cache (for recipe search results).
+- **PostgreSQL**: Primary data store for recipes and nutrition data.
 
 ## Features
 
-- 🍳 Recipe search and browsing
-- 📱 Responsive design with Tailwind CSS
-- 🔍 Real-time search functionality
-- 📖 Detailed recipe pages with ingredients and instructions
-- 🐳 Docker/Podman support
-- ⚡ Fast builds with minimal dependencies
+- Recipe search and browsing
+- Responsive design with Tailwind CSS
+- Real-time search functionality
+- Detailed recipe pages with ingredients and instructions
+- Like/unlike recipes
+- Nutritional analysis (async, powered by Go worker via Redis queue)
+- Search result caching via Redis
+- Docker/Podman support
 
 ## Tech stack
 
-- **Backend**: Node.js, Express, TypeScript, PostgreSQL
+- **Web backend**: Node.js, Express, PostgreSQL, ioredis
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Nutrition analyzer**: Go, go-redis, pgx
 - **Database**: PostgreSQL
+- **Cache/Queue**: Redis
 - **Container**: Docker/Podman
 
 ## Quick start
 
-The easiest way to run the application is with Docker Compose or Podman Compose. This starts the backend, frontend, and a PostgreSQL database in one command.
+The easiest way to run the application is with Docker Compose or Podman Compose. This starts all services in one command.
 
 ### Prerequisites
 
@@ -52,7 +74,9 @@ The easiest way to run the application is with Docker Compose or Podman Compose.
    This starts:
 
    - **PostgreSQL** database on port 5432
+   - **Redis** on port 6379
    - **Web app** (backend + frontend) on http://localhost:3000
+   - **Nutrition analyzer** (Go worker)
 
    The database is automatically seeded with sample recipes on first launch.
 
@@ -82,12 +106,12 @@ The easiest way to run the application is with Docker Compose or Podman Compose.
 
 ## Development
 
-All application code lives under `apps/web/`, which is an npm workspace with `backend` and `frontend` packages.
+All application code lives under `apps/web/` (npm workspace with `backend` and `frontend` packages) and `apps/nutrition-analyzer/` (Go module).
 
-1. **Start the database**
+1. **Start the database and Redis**
 
    ```bash
-   docker compose -f apps/docker-compose.yml up db -d
+   docker compose -f apps/docker-compose.yml up db redis -d
    ```
 
 2. **Install dependencies**
@@ -100,7 +124,7 @@ All application code lives under `apps/web/`, which is an npm workspace with `ba
 3. **Start the development servers**
 
    ```bash
-   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db npm run dev
+   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db REDIS_URL=redis://localhost:6379 npm run dev
    ```
 
    This starts:
@@ -110,11 +134,11 @@ All application code lives under `apps/web/`, which is an npm workspace with `ba
 
    You can also run them individually with `npm run dev:backend` or `npm run dev:frontend`.
 
-4. **Lint the frontend**
+4. **Run the nutrition analyzer locally** (requires Go 1.23+)
 
    ```bash
-   cd frontend
-   npm run lint
+   cd apps/nutrition-analyzer
+   DATABASE_URL=postgresql://recipe_user:recipe_pass@localhost:5432/recipe_db REDIS_URL=redis://localhost:6379 go run .
    ```
 
 ### Database seeding
@@ -129,8 +153,12 @@ npm run db:seed
 ## API endpoints
 
 - `GET /health` - Health check
-- `GET /api/recipes` - Get all recipes (supports search query parameter)
+- `GET /api/recipes` - Get all recipes (supports `search`, `limit`, `offset` query parameters)
 - `GET /api/recipes/:id` - Get recipe by ID
+- `POST /api/recipes/:id/like` - Like a recipe
+- `POST /api/recipes/:id/unlike` - Unlike a recipe
+- `POST /api/recipes/:id/analyze` - Enqueue nutrition analysis (via Redis -> Go worker)
+- `GET /api/recipes/:id/nutrition` - Get nutrition data for a recipe
 
 ## Environment variables
 
@@ -139,6 +167,7 @@ These are configured automatically when using Docker/Podman Compose. Only set th
 | Variable | Description | Default (Compose) |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string (required) | `postgresql://recipe_user:recipe_pass@db:5432/recipe_db` |
+| `REDIS_URL` | Redis connection URL | `redis://redis:6379` |
 | `SERVER_PORT` | Backend server port | `3000` |
 | `FRONTEND_DEV_PORT` | Frontend dev server port | `5000` |
 | `NODE_ENV` | Environment mode | `production` |

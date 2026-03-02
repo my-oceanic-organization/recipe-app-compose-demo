@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Recipe } from "../types/recipe";
+import { Recipe, NutritionInfo } from "../types/recipe";
 
 const RecipeDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -8,6 +8,59 @@ const RecipeDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [likeInProgress, setLikeInProgress] = useState(false);
+  const [nutrition, setNutrition] = useState<NutritionInfo | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchNutrition = useCallback(async (recipeId: string) => {
+    try {
+      const response = await fetch(`/api/recipes/${recipeId}/nutrition`);
+      if (response.ok) {
+        const data = await response.json();
+        setNutrition(data);
+        return true;
+      }
+    } catch (err) {
+      console.error("Error fetching nutrition:", err);
+    }
+    return false;
+  }, []);
+
+  const startAnalysis = useCallback(async () => {
+    if (!id) return;
+    setAnalyzing(true);
+
+    try {
+      const response = await fetch(`/api/recipes/${id}/analyze`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to start analysis");
+
+      pollRef.current = setInterval(async () => {
+        const found = await fetchNutrition(id);
+        if (found) {
+          setAnalyzing(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      }, 2000);
+
+      setTimeout(() => {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          setAnalyzing(false);
+        }
+      }, 30000);
+    } catch (err) {
+      console.error("Error starting analysis:", err);
+      setAnalyzing(false);
+    }
+  }, [id, fetchNutrition]);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const toggleLike = useCallback(async () => {
     if (!recipe) return;
@@ -61,8 +114,9 @@ const RecipeDetail = () => {
   useEffect(() => {
     if (id) {
       fetchRecipe(id);
+      fetchNutrition(id);
     }
-  }, [id, fetchRecipe]);
+  }, [id, fetchRecipe, fetchNutrition]);
 
   const getDifficultyColor = useCallback((difficulty: string) => {
     switch (difficulty.toLowerCase()) {
@@ -183,6 +237,73 @@ const RecipeDetail = () => {
               </div>
             </div>
           </div>
+
+          {nutrition ? (
+            <div className="mb-8 p-6 bg-emerald-50 rounded-xl border border-emerald-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Nutrition per Serving
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="text-center p-3 bg-white rounded-lg border border-emerald-100">
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {nutrition.calories}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">kcal</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border border-emerald-100">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {nutrition.protein_g}g
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Protein</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border border-emerald-100">
+                  <div className="text-2xl font-bold text-amber-600">
+                    {nutrition.carbs_g}g
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Carbs</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border border-emerald-100">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {nutrition.fat_g}g
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Fat</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border border-emerald-100">
+                  <div className="text-2xl font-bold text-green-600">
+                    {nutrition.fiber_g}g
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Fiber</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3 text-right">
+                Analyzed {new Date(nutrition.analyzed_at).toLocaleString()}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-center">
+              <button
+                onClick={startAnalysis}
+                disabled={analyzing}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  analyzing
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+              >
+                {analyzing ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    Analyzing nutrition...
+                  </span>
+                ) : (
+                  "🔬 Analyze Nutrition"
+                )}
+              </button>
+              <p className="text-sm text-gray-500 mt-2">
+                Estimate calories and macros from ingredients
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
