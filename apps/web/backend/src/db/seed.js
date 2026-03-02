@@ -2,12 +2,9 @@ const { Pool } = require("pg");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes("localhost")
-    ? undefined
-    : {
-        rejectUnauthorized: false,
-        checkServerIdentity: () => undefined,
-      },
+  ssl: process.env.DATABASE_URL?.includes("sslmode=require")
+    ? { rejectUnauthorized: false }
+    : undefined,
 });
 
 const createTables = async () => {
