@@ -12,7 +12,6 @@ flowchart LR
     Web -- LPUSH job --> Redis
     Redis --> Analyzer["nutrition-analyzer (Go)"]
     Analyzer --> PostgreSQL
-    Web -- read nutrition --> PostgreSQL
 ```
 
 - **Web**: Node.js + Express backend serving a React frontend. Handles recipe CRUD, caches search results in Redis, and enqueues nutrition analysis jobs to Redis.
