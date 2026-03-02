@@ -1,5 +1,5 @@
 services:
-  db:
+  bestest-recipes-db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
+  bestest-recipes-redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
@@ -29,7 +29,7 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
+  bestest-recipes-web:
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -37,29 +37,29 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://recipe_user:recipe_pass@db:5432/recipe_db
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://recipe_user:recipe_pass@bestest-recipes-db:5432/recipe_db
+      REDIS_URL: redis://bestest-recipes-redis:6379
       SERVER_PORT: "3000"
       NODE_ENV: production
     depends_on:
-      db:
+      bestest-recipes-db:
         condition: service_healthy
-      redis:
+      bestest-recipes-redis:
         condition: service_healthy
 
-  nutrition-analyzer:
+  bestest-recipes-nutrition-analyzer:
     build:
       context: ./nutrition-analyzer
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://recipe_user:recipe_pass@db:5432/recipe_db
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://recipe_user:recipe_pass@bestest-recipes-db:5432/recipe_db
+      REDIS_URL: redis://bestest-recipes-redis:6379
       PORT: "8080"
     depends_on:
-      db:
+      bestest-recipes-db:
         condition: service_healthy
-      redis:
+      bestest-recipes-redis:
         condition: service_healthy
 
 volumes:

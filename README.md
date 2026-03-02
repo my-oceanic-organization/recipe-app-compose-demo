@@ -1,4 +1,4 @@
-# Recipe App Compose Demo
+# Bestest Recipes
 
 A recipe application with a Node.js web backend, React frontend, PostgreSQL database, Redis cache/queue, and a Go-based nutrition analyzer service.
 

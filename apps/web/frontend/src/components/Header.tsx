@@ -8,7 +8,7 @@ const Header = () => {
           to="/"
           className="text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
         >
-          🍳 Recipe App
+          🍳 Bestest Recipes
         </Link>
       </div>
     </header>

@@ -1,4 +1,3 @@
-# Multi-stage build for Recipe App with optimized build time
 FROM node:18-alpine AS base
 
 # Build the frontend with optimized caching
@@ -64,7 +63,7 @@ ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
 
 # Start the application
-CMD echo "🚀 Starting Recipe App..." && \
+CMD echo "🚀 Starting Bestest Recipes web application..." && \
     echo "🌱 Seeding database..." && \
     node src/db/seed.js && \
     echo "✅ Database seeded!" && \
