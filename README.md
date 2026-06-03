@@ -1,4 +1,4 @@
-# Bestest Recipes
+# Bestest Recipes!
 
 A multi-service demo application with a Node.js web backend, a React frontend, a PostgreSQL database, a Redis cache, a Redis queue, and a Go-based background job service.
 
